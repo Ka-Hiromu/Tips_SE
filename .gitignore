@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# PyInstaller ビルド成果物（ビルド.bat で再生成可能）
+build/
+dist/
+
+# ログ・一時ファイル
+*.log
+presets/_*.json
+presets/_*.pdf
+sounds/_*.wav
+sounds/_*.flac
+
+# Windows
+Thumbs.db
+desktop.ini
+*.lnk
