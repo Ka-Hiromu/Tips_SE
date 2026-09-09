@@ -10,7 +10,7 @@ from PySide6.QtGui import QPdfWriter, QPainter, QPageSize
 from PySide6.QtWidgets import QApplication
 
 from engine import AudioEngine
-from main_app import MainWindow
+from main_window import MainWindow
 from models import Preset
 
 HERE = Path(__file__).resolve().parent
@@ -115,7 +115,7 @@ def main():
 
     win.script.clear()  # PDFを閉じてからでないと削除できない
     eng.close()
-    win.loader.shutdown()
+    win.player.shutdown()
     pump(app)
     for f in (pdf, pp, snd):
         try:

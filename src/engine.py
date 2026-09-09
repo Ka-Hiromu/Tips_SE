@@ -13,8 +13,7 @@ ONJO の弱点（2秒のラグ／取りこぼし／長時間で落ちる）を�
 from __future__ import annotations
 
 import threading
-from dataclasses import dataclass, field
-from pathlib import Path
+from dataclasses import dataclass
 
 import numpy as np
 import sounddevice as sd
@@ -197,6 +196,17 @@ class AudioEngine:
             return sd.query_devices(self._device, kind="output")["name"]
         except Exception:
             return "(既定デバイス)"
+
+    @property
+    def device_index(self) -> int | None:
+        """現在の出力デバイスindex（既定デバイスに任せている場合は None）。"""
+        return self._device
+
+    def describe(self) -> str:
+        """出力構成の要約（ステータスバー表示用）。"""
+        api = "WASAPI" if self._hostapi is not None else "default"
+        latency_ms = self.blocksize / self.samplerate * 1000
+        return f"{api} {self.samplerate}Hz / block{self.blocksize}(≈{latency_ms:.1f}ms)"
 
     def set_output_device(self, device: int | None) -> None:
         """出力先スピーカーを切り替える。再生中のボイスは維持する。

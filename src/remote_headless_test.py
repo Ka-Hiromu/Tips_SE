@@ -14,7 +14,7 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtWebSockets import QWebSocket
 
 from engine import AudioEngine
-from main_app import MainWindow
+from main_window import MainWindow
 
 HERE = Path(__file__).resolve().parent
 
@@ -37,9 +37,9 @@ def main():
     sf.write(snd, (0.5 * np.sin(2 * np.pi * 330 * t)).astype("float32"), sr)
     p0 = win.preset.pads[0]; p0.path = str(snd); p0.label = "テスト音"
     win._rebuild_grid()
-    pump(app, lambda: eng.get_clip(win._clip_id(p0)) is not None, 10)
+    pump(app, lambda: eng.get_clip(win.player.clip_id(p0)) is not None, 10)
     win.trigger_pad(p0)
-    assert eng.is_playing(win._clip_id(p0)), "再生できていない"
+    assert eng.is_playing(win.player.clip_id(p0)), "再生できていない"
 
     # リモート開始
     win.remote = win.remote or None
@@ -74,7 +74,7 @@ def main():
 
     # stop 送信 → 停止
     ws.sendTextMessage(json.dumps({"type": "stop", "pad": 0}))
-    assert pump(app, lambda: not eng.is_playing(win._clip_id(p0)), 3), "stop未反映"
+    assert pump(app, lambda: not eng.is_playing(win.player.clip_id(p0)), 3), "stop未反映"
     print("リモートstop反映 OK")
 
     # 停止後の state は空（再生中のみ表示）
@@ -86,7 +86,7 @@ def main():
 
     ws.close()
     win.remote.stop()
-    eng.close(); win.loader.shutdown()
+    eng.close(); win.player.shutdown()
     snd.unlink(missing_ok=True)
     print("ALL REMOTE TESTS PASSED")
 

@@ -510,7 +510,7 @@ def test_gui_load(report: Report):
     paths: list[Path] = []
     try:
         from PySide6.QtWidgets import QApplication
-        from main_app import MainWindow
+        from main_window import MainWindow
 
         # QApplication はプロセス内に1つだけ
         app = QApplication.instance() or QApplication([])
@@ -544,7 +544,7 @@ def test_gui_load(report: Report):
                 time.sleep(0.005)
             return cond()
 
-        ok = pump_until(lambda: len(win._pending) == 0)
+        ok = pump_until(lambda: win.player.pending_count == 0)
         assert ok, "全クリップのロードが完了しなかった"
 
         # 全パッドを同時にトリガー
@@ -571,7 +571,7 @@ def test_gui_load(report: Report):
         time.sleep(0.1)
 
         eng.close()
-        win.loader.shutdown()
+        win.player.shutdown()
 
         passed = ok and voices_after >= N * 0.9  # 90%以上再生できれば合格
         report.add(TestResult(name, passed, [

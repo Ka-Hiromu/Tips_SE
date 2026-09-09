@@ -14,9 +14,13 @@ import functools
 import http.server
 import json
 import socket
-import sys
 import threading
-from pathlib import Path
+
+from PySide6.QtCore import QObject, QTimer, Signal
+from PySide6.QtNetwork import QHostAddress
+from PySide6.QtWebSockets import QWebSocketServer
+
+from appconfig import resource_path
 
 
 class _QuietHandler(http.server.SimpleHTTPRequestHandler):
@@ -28,18 +32,6 @@ class _QuietHandler(http.server.SimpleHTTPRequestHandler):
     """
     def log_message(self, *args):
         pass
-
-
-def _web_dir() -> Path:
-    """配信ページ(remote_web)の場所。開発時とPyInstaller frozen時の両対応。"""
-    if getattr(sys, "frozen", False):
-        base = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
-        return base / "remote_web"
-    return Path(__file__).resolve().parent.parent / "remote_web"
-
-from PySide6.QtCore import QObject, QTimer, Signal
-from PySide6.QtNetwork import QHostAddress
-from PySide6.QtWebSockets import QWebSocketServer
 
 
 def lan_ip() -> str:
@@ -77,7 +69,8 @@ class RemoteServer(QObject):
     def start(self) -> str:
         if self.running:
             return self.url()
-        handler = functools.partial(_QuietHandler, directory=str(_web_dir()))
+        handler = functools.partial(_QuietHandler,
+                                    directory=str(resource_path("remote_web")))
         self._http = http.server.ThreadingHTTPServer(("0.0.0.0", self.http_port), handler)
         self._http_thread = threading.Thread(target=self._http.serve_forever, daemon=True)
         self._http_thread.start()
@@ -147,7 +140,7 @@ class RemoteServer(QObject):
     def _payload(self) -> str:
         items = []
         for p in self.window.preset.pads:
-            if p.assigned and self.window._pad_is_playing(p):
+            if p.assigned and self.window.player.is_playing(p):
                 items.append({"pad": p.index, "num": p.index + 1,
                               "name": p.display_name(), "gain": round(p.gain, 3)})
         return json.dumps({"type": "state", "playing": items}, ensure_ascii=False)

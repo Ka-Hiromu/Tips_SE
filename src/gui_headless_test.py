@@ -12,7 +12,7 @@ import soundfile as sf
 from PySide6.QtWidgets import QApplication
 
 from engine import AudioEngine
-from main_app import MainWindow
+from main_window import MainWindow
 from models import Preset
 
 HERE = Path(__file__).resolve().parent
@@ -62,10 +62,10 @@ def main():
     print(f"_rebuild_grid 呼び出し時間: {submit_ms:.1f} ms（UIブロックしないこと）")
     assert submit_ms < 500, f"UIをブロックしている（{submit_ms:.0f}ms）"
     # この時点ではまだ読み込み中のはず
-    print(f"submit直後 pending={len(win._pending)} / 全{win._pending_total}")
+    print(f"submit直後 pending={win.player.pending_count} / 全{win.player.pending_total}")
 
     # --- 全完了まで待つ ---
-    ok = pump_until(app, lambda: len(win._pending) == 0, timeout=30)
+    ok = pump_until(app, lambda: win.player.pending_count == 0, timeout=30)
     assert ok, "読み込みが完了しなかった"
     for i in range(N):
         assert eng.get_clip(f"pad{i}") is not None, f"pad{i} 未ロード"
@@ -101,7 +101,7 @@ def main():
     print("プリセット保存/読込 OK")
 
     eng.close()
-    win.loader.shutdown()
+    win.player.shutdown()
     # 後始末
     for p in paths:
         p.unlink(missing_ok=True)

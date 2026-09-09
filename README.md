@@ -131,10 +131,17 @@ Tips_SE/
 ├─ requirements.txt
 ├─ src/
 │   ├─ engine.py         低遅延ソフトミキサー（コア）
+│   ├─ padplayer.py      パッド⇔クリップの仲介・並列読み込み（GUIなし）
 │   ├─ models.py         パッド/プリセット/注釈のデータモデル
 │   ├─ pdfview.py        戯曲PDFビューア + 注釈（スタンプ/テキスト）
 │   ├─ remote.py         スマホ・リモート操作サーバ（HTTP配信 + QWebSocket）
-│   ├─ main_app.py       PySide6 GUI（ロギング・レベルメーター含む）
+│   ├─ main_window.py    メインウィンドウ（画面の組み立てと操作の振り分け）
+│   ├─ widgets.py        パッドセル/レベルメーター/円グラフ等の自作ウィジェット
+│   ├─ dialogs.py        パッド設定・グリッドサイズ・スマホ操作QRのダイアログ
+│   ├─ theme.py          配色テーマ
+│   ├─ appconfig.py      パス解決・設定JSON・ロギング（GUI非依存）
+│   ├─ winui.py          Windows固有UI（タイトルバー配色・スプラッシュ・QR）
+│   ├─ main_app.py       起動エントリポイント
 │   ├─ smoke_test.py     エンジン動作・遅延の実機確認
 │   ├─ gui_headless_test.py   GUIロジックの自動テスト
 │   ├─ pdf_headless_test.py   戯曲PDF・注釈の自動テスト
