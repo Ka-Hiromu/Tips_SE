@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>Tips_SE リモート</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#11171a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+  html, body { margin: 0; background: #11171a; color: #eceff1;
+    font-family: -apple-system, "Hiragino Sans", system-ui, sans-serif; overflow: hidden; }
+  /* アドレスバーで見切れないよう、可視高さ(svh)に合わせる */
+  body { height: 100vh; height: 100svh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  #dot { position: fixed; top: 7px; left: 7px; width: 12px; height: 12px; border-radius: 50%;
+    background: #c62828; z-index: 10; box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
+  #dot.on { background: #43a047; }
+  #strips { height: 100%; display: flex; gap: 12px; padding: 8px 12px 8px 26px;
+    overflow-x: auto; align-items: stretch; }
+  .empty { margin: auto; color: #607d8b; font-size: 15px; }
+  .strip { flex: 0 0 110px; background: #20292e; border: 1px solid #313e45; border-radius: 12px;
+    display: flex; flex-direction: column; align-items: center; padding: 8px 6px; }
+  .name { font-size: 13px; font-weight: 700; text-align: center; min-height: 34px; width: 100%;
+    line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; word-break: break-word; flex: 0 0 auto; }
+  .name .num { color: #80d8ff; font-weight: 800; }
+
+  /* カスタム縦フェーダー */
+  .fader { position: relative; width: 92px; flex: 1 1 auto; min-height: 90px;
+    padding: 18px 0; touch-action: none; }
+  .rail { position: absolute; top: 18px; bottom: 18px; left: 0; right: 0; }
+  .track { position: absolute; left: 50%; transform: translateX(-50%); top: 0; bottom: 0;
+    width: 10px; border-radius: 5px;
+    background: linear-gradient(#2b3940, #222d33); box-shadow: inset 0 0 3px rgba(0,0,0,.6); }
+  /* 塗り（下から現在値まで明るく） */
+  .fill { position: absolute; left: 50%; transform: translateX(-50%); bottom: 0;
+    width: 10px; border-radius: 5px; background: linear-gradient(#4fc3f7, #0288d1); }
+  .tick { position: absolute; left: 50%; transform: translateX(-50%); width: 22px; height: 2px;
+    background: rgba(255,255,255,0.16); border-radius: 1px; }
+  .tick.big { width: 42px; height: 3px; background: rgba(255,255,255,0.5); }
+  .thumb { position: absolute; left: 50%; transform: translate(-50%, 50%);
+    width: 58px; height: 28px; border-radius: 14px;
+    background: linear-gradient(#fbfdff, #c2ccd2);
+    border: 1px solid #8a99a1;
+    box-shadow: 0 3px 6px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.8); }
+  .thumb::after { content: ""; position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%); width: 26px; height: 3px; border-radius: 2px;
+    background: #4fc3f7; }
+</style>
+</head>
+<body>
+  <span id="dot"></span>
+  <div id="strips"><div class="empty" id="empty">接続中…</div></div>
+<script>
+const MAXV = 150; // 音量レンジ 0-150%
+const wsUrl = `ws://${location.hostname}:8771`;
+const stripsEl = document.getElementById("strips");
+const emptyEl = document.getElementById("empty");
+const dot = document.getElementById("dot");
+let ws = null;
+const strips = new Map();   // pad -> {el, name, rail, fill, thumb, locked, set}
+
+function connect() {
+  ws = new WebSocket(wsUrl);
+  ws.onopen = () => dot.classList.add("on");
+  ws.onclose = () => { dot.classList.remove("on"); setTimeout(connect, 1000); };
+  ws.onerror = () => { try { ws.close(); } catch (e) {} };
+  ws.onmessage = (ev) => {
+    let d; try { d = JSON.parse(ev.data); } catch (e) { return; }
+    if (d.type === "state") render(d.playing);
+  };
+}
+function send(obj) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); }
+
+function setName(rec, item) {
+  rec.name.innerHTML = "";
+  const num = document.createElement("span"); num.className = "num"; num.textContent = item.num + ". ";
+  rec.name.appendChild(num);
+  rec.name.appendChild(document.createTextNode(item.name));
+}
+
+function makeStrip(item) {
+  const el = document.createElement("div"); el.className = "strip";
+  const name = document.createElement("div"); name.className = "name";
+
+  const fader = document.createElement("div"); fader.className = "fader";
+  const rail = document.createElement("div"); rail.className = "rail";
+  const track = document.createElement("div"); track.className = "track";
+  const fill = document.createElement("div"); fill.className = "fill";
+  rail.appendChild(track); rail.appendChild(fill);
+  // 目盛: 10%毎に小、100%で大（数字なし）
+  for (let v = 0; v <= MAXV; v += 10) {
+    const t = document.createElement("div");
+    t.className = (v === 100) ? "tick big" : "tick";
+    t.style.bottom = (v / MAXV * 100) + "%";
+    rail.appendChild(t);
+  }
+  const thumb = document.createElement("div"); thumb.className = "thumb";
+  rail.appendChild(thumb);
+  fader.appendChild(rail);
+
+  const rec = { el, name, rail, fill, thumb, locked: false };
+  rec.set = (vp) => {
+    const pct = Math.max(0, Math.min(100, vp / MAXV * 100));
+    thumb.style.bottom = pct + "%";
+    fill.style.height = pct + "%";
+  };
+  rec.set(item.gain * 100);
+  setName(rec, item);
+
+  const valFromY = (clientY) => {
+    const r = rail.getBoundingClientRect();
+    let frac = (r.bottom - clientY) / r.height;
+    frac = Math.max(0, Math.min(1, frac));
+    return frac * MAXV;
+  };
+  const apply = (clientY) => {
+    const v = valFromY(clientY);
+    rec.set(v);
+    send({ type: "gain", pad: item.pad, value: v / 100 });
+  };
+  let active = null; // pointerId（マルチタッチで各フェーダー独立）
+  fader.addEventListener("pointerdown", (e) => {
+    active = e.pointerId; rec.locked = true;
+    try { fader.setPointerCapture(e.pointerId); } catch (err) {}
+    apply(e.clientY); e.preventDefault();
+  });
+  fader.addEventListener("pointermove", (e) => { if (active === e.pointerId) apply(e.clientY); });
+  const end = (e) => { if (active === e.pointerId) { active = null; setTimeout(() => rec.locked = false, 200); } };
+  fader.addEventListener("pointerup", end);
+  fader.addEventListener("pointercancel", end);
+
+  el.appendChild(name); el.appendChild(fader);
+  strips.set(item.pad, rec);
+  return el;
+}
+
+function render(playing) {
+  const seen = new Set();
+  for (const item of playing) {
+    seen.add(item.pad);
+    let rec = strips.get(item.pad);
+    if (!rec) { stripsEl.appendChild(makeStrip(item)); rec = strips.get(item.pad); }
+    setName(rec, item);
+    if (!rec.locked) rec.set(item.gain * 100);
+  }
+  for (const [pad, rec] of Array.from(strips)) {
+    if (!seen.has(pad)) { rec.el.remove(); strips.delete(pad); }
+  }
+  emptyEl.style.display = playing.length ? "none" : "";
+  if (!playing.length) emptyEl.textContent = "再生中の音はありません";
+}
+
+connect();
+</script>
+</body>
+</html>

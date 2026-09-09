@@ -1,12 +1,12 @@
 @echo off
-chcp 65001 >nul
+chcp 932 >nul
 cd /d "%~dp0"
-echo Tips_SE ã‚’ãƒ“ãƒ«ãƒ‰ã—ã¦ã„ã¾ã™...
+echo Tips_SE ‚ðƒrƒ‹ƒh‚µ‚Ä‚¢‚Ü‚·...
 ".venv\Scripts\pyinstaller.exe" "Tips_SE.spec" --noconfirm
 echo.
 if exist "dist\Tips_SE\Tips_SE.exe" (
-    echo ãƒ“ãƒ«ãƒ‰å®Œäº†: dist\Tips_SE\Tips_SE.exe
+    echo ƒrƒ‹ƒhŠ®—¹: dist\Tips_SE\Tips_SE.exe
 ) else (
-    echo ãƒ“ãƒ«ãƒ‰ã«å¤±æ•—ã—ã¾ã—ãŸã€‚ä¸Šã®å‡ºåŠ›ã‚’ç¢ºèªã—ã¦ãã ã•ã„ã€‚
+    echo ƒrƒ‹ƒh‚ÉŽ¸”s‚µ‚Ü‚µ‚½Bã‚Ìo—Í‚ðŠm”F‚µ‚Ä‚­‚¾‚³‚¢B
 )
 pause

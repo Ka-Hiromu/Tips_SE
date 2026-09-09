@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtPdf import QPdfDocument
 
 from models import Annotation
+from theme import t
 
 
 class StampItem(QGraphicsItem):
@@ -102,7 +103,7 @@ class ScriptView(QGraphicsView):
         self._scene = QGraphicsScene(self)
         self.setScene(self._scene)
         self.setRenderHint(QPainter.SmoothPixmapTransform, True)
-        self.setBackgroundBrush(QColor("#202a2f"))
+        self.setBackgroundBrush(QColor(t().pdf_bg))
         self.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setDragMode(QGraphicsView.NoDrag)
@@ -196,6 +197,14 @@ class ScriptView(QGraphicsView):
     def set_tool(self, tool: str | None):
         self.tool = tool
 
+    def apply_theme(self):
+        """配色テーマの変更を反映する。"""
+        self.setBackgroundBrush(QColor(t().pdf_bg))
+        pen = QPen(QColor(t().pdf_placeholder_border))
+        for ph in self._placeholders:
+            ph.setPen(pen)
+        self.viewport().update()
+
     def set_stamp_pad(self, pad_index: int):
         self.stamp_pad = pad_index
 
@@ -227,7 +236,8 @@ class ScriptView(QGraphicsView):
             x = (max_w - w) / 2.0
             self._layout.append({"x": x, "y": y, "w": w, "h": h})
             # 仮の白ページ（描画前のプレースホルダ）
-            ph = self._scene.addRect(x, y, w, h, QPen(QColor("#3a4750")),
+            ph = self._scene.addRect(x, y, w, h,
+                                     QPen(QColor(t().pdf_placeholder_border)),
                                      QColor("#ffffff"))
             ph.setZValue(-1)
             self._placeholders.append(ph)

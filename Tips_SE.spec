@@ -20,7 +20,16 @@ for pkg in ("sounddevice", "soundfile", "soxr"):
 for data_pkg in ("_sounddevice_data", "_soundfile_data"):
     datas += collect_data_files(data_pkg)
 
-hiddenimports += ["soxr", "cffi", "_cffi_backend"]
+hiddenimports += ["soxr", "cffi", "_cffi_backend", "qrcode"]
+
+# スマホ・リモートの配信ページを同梱
+datas += [("remote_web", "remote_web")]
+
+# 同梱フォント（Noto Sans JP）
+datas += [("assets/fonts/NotoSansJP.ttf", "assets/fonts")]
+
+# ロゴ（スプラッシュ）とアイコン
+datas += [("assets/logo.png", "assets"), ("assets/icon.ico", "assets")]
 
 
 a = Analysis(
@@ -50,7 +59,7 @@ exe = EXE(
     upx=False,
     console=False,            # windowed（コンソール窓なし）
     disable_windowed_traceback=False,
-    icon=None,
+    icon="assets/icon.ico",
 )
 
 coll = COLLECT(

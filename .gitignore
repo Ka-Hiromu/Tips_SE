@@ -19,3 +19,6 @@ sounds/_*.flac
 Thumbs.db
 desktop.ini
 *.lnk
+
+# ランチャーexe（pyinstaller で再生成可能）
+Tips_SE起動.exe
