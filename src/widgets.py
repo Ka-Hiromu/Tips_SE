@@ -318,6 +318,8 @@ class PadCell(QWidget):
                 tags.append("EXCL")
             if p.retrigger:
                 tags.append("連")
+            if p.start > 0 or p.end > 0:
+                tags.append("範")
             self.mode_lbl.setText(" ".join(tags))
             self.fader_widget.setVisible(True)
             self.opt_bar.setVisible(True)

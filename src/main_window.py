@@ -21,6 +21,7 @@ from appconfig import (APP_NAME, SOUND_EXTS, bundled_presets_dir,
 from dialogs import GridSizeDialog, PadEditDialog, RemoteDialog
 from engine import AudioEngine
 from models import Pad, Preset
+from onjo import ONJO_FADE_SEC, load_lst
 from padplayer import PadPlayer, TriggerResult
 from pdfview import ScriptView
 from remote import RemoteServer
@@ -242,9 +243,11 @@ class MainWindow(QMainWindow):
         a_saveas = QAction("名前を付けて保存…", self); a_saveas.triggered.connect(self.save_preset_as)
         a_folder = QAction("フォルダから一括割当…", self)
         a_folder.triggered.connect(self.assign_from_folder)
+        a_onjo = QAction("ONJOのリストを取り込む…", self)
+        a_onjo.triggered.connect(self.import_onjo)
         for a in (a_new, a_open, a_save, a_saveas):
             fm.addAction(a)
-        fm.addSeparator(); fm.addAction(a_folder)
+        fm.addSeparator(); fm.addAction(a_folder); fm.addAction(a_onjo)
 
         gm = mb.addMenu("グリッド")
         a_grid = QAction("行・列数を変更…", self); a_grid.triggered.connect(self.change_grid)
@@ -731,10 +734,14 @@ class MainWindow(QMainWindow):
         save_app_config(self.app_config)
 
     def open_preset(self):
-        path, _ = QFileDialog.getOpenFileName(self, "プリセットを開く",
-                                              self._preset_dir(),
-                                              "プリセット (*.json)")
+        path, _ = QFileDialog.getOpenFileName(
+            self, "プリセットを開く", self._preset_dir(),
+            "プリセット / ONJOリスト (*.json *.lst);;"
+            "Tips_SE プリセット (*.json);;ONJO リスト (*.lst)")
         if not path:
+            return
+        if Path(path).suffix.lower() == ".lst":
+            self._load_onjo(path)
             return
         try:
             self.preset = Preset.load(path)
@@ -743,11 +750,59 @@ class MainWindow(QMainWindow):
             return
         self.preset_path = path
         self._remember_preset_dir(path)
+        self._apply_loaded_preset()
+        self._update_title()
+        self._warn_duplicate_keys()
+
+    def import_onjo(self):
+        path, _ = QFileDialog.getOpenFileName(self, "ONJOのリストを取り込む",
+                                              self._preset_dir(),
+                                              "ONJO リスト (*.lst)")
+        if path:
+            self._load_onjo(path)
+
+    def _load_onjo(self, path: str):
+        """ONJOの.lstを取り込む。元の.lstは書き換えないので未保存状態で開く。"""
+        self.engine.stop_all()
+        try:
+            preset, report = load_lst(
+                path, multi="random" if self.ext_random else "first")
+        except Exception as e:
+            log.exception("ONJO取り込み失敗: %s", path)
+            QMessageBox.critical(self, "エラー", f"読み込めません:\n{e}")
+            return
+        self.preset = preset
+        self.preset_path = None     # 保存はTips_SEのプリセット(.json)としてやり直させる
+        self._remember_preset_dir(path)
+        self._apply_loaded_preset()
+        self._update_title(dirty=True)
+        self._show_onjo_report(Path(path).name, report)
+        self._warn_duplicate_keys()
+
+    def _show_onjo_report(self, name: str, report) -> None:
+        lines = [f"「{name}」から {report.pads} 個のパッドを取り込みました。"]
+        if report.relocated:
+            lines.append(f"・音源 {report.relocated} 個は .lst と同じフォルダから"
+                         "見つけたものに差し替えました")
+        lines.append(f"・フェード長はONJO側に残らないため {ONJO_FADE_SEC:g} 秒にしました")
+        lines.append("・保存するとTips_SEのプリセット(.json)になります"
+                     "（元の .lst は書き換えません）")
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Information)
+        box.setWindowTitle("ONJOリストの取り込み")
+        box.setText("\n".join(lines))
+        if report.warnings:
+            box.setInformativeText(
+                f"Tips_SEでは再現できない設定が {len(report.warnings)} 件あります"
+                "（「詳細を表示」で確認できます）。")
+            box.setDetailedText("\n".join(report.warnings))
+        box.exec()
+
+    def _apply_loaded_preset(self):
+        """読み込んだ preset を画面へ反映する（プリセット/ONJO取り込み共通）。"""
         self.master_slider.setValue(int(self.preset.master_gain * 100))
         self._rebuild_grid()
         self._load_script_from_preset()
-        self._update_title()
-        self._warn_duplicate_keys()
 
     def _load_script_from_preset(self):
         """プリセットの戯曲PDFと注釈をビューアへ反映。"""

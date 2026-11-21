@@ -53,12 +53,14 @@ class ClipLoader(QObject):
         self._pool = ThreadPoolExecutor(max_workers=workers,
                                         thread_name_prefix="clip-loader")
 
-    def submit(self, clip_id: str, path: str, generation: int) -> None:
-        self._pool.submit(self._work, clip_id, path, generation)
+    def submit(self, clip_id: str, path: str, generation: int,
+               start: float = 0.0, end: float = 0.0) -> None:
+        self._pool.submit(self._work, clip_id, path, generation, start, end)
 
-    def _work(self, clip_id: str, path: str, generation: int) -> None:
+    def _work(self, clip_id: str, path: str, generation: int,
+              start: float, end: float) -> None:
         try:
-            self.engine.load_clip(clip_id, path)
+            self.engine.load_clip(clip_id, path, start, end)
             self.finished.emit(clip_id, True, "", generation)
         except Exception as e:  # noqa: BLE001
             self.finished.emit(clip_id, False, str(e), generation)
@@ -206,24 +208,25 @@ class PadPlayer(QObject):
         for cid in self.engine.loaded_clip_ids():
             self.engine.unload_clip(cid)
 
-        to_load: list[tuple[str, str]] = []
+        # 再生範囲はパッドごとなので Pad も一緒に持ち回す
+        to_load: list[tuple[str, str, Pad]] = []
         for p in pads:
             if not p.assigned:
                 continue
             for cid, path in self.clip_specs(p):
                 if Path(path).exists():
-                    to_load.append((cid, path))
+                    to_load.append((cid, path, p))
                 else:
                     self._errors.append(
                         f"パッド{p.index + 1}: ファイルが見つかりません {path}")
 
-        self._pending = {cid for cid, _ in to_load}
+        self._pending = {cid for cid, _, _ in to_load}
         self._pending_total = len(to_load)
         for p in pads:
             if p.assigned:
                 self.loadingChanged.emit(p.index, True)
-        for cid, path in to_load:
-            self._loader.submit(cid, path, self._generation)
+        for cid, path, p in to_load:
+            self._loader.submit(cid, path, self._generation, p.start, p.end)
         self._emit_progress()
 
     def reload_pad(self, pad: Pad) -> list[str]:
@@ -239,7 +242,7 @@ class PadPlayer(QObject):
         self._pending.update(cid for cid, _ in real)
         self._pending_total += len(real)
         for cid, path in real:
-            self._loader.submit(cid, path, self._generation)
+            self._loader.submit(cid, path, self._generation, pad.start, pad.end)
         self._emit_progress()
         return missing
 

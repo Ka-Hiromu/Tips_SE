@@ -92,6 +92,25 @@ class PadEditDialog(QDialog):
         self.fade_out_spin.setValue(pad.fade_out)
         form.addRow("フェードアウト", self.fade_out_spin)
 
+        # 再生範囲（0のままなら音源全体）。ONJO の「再生範囲」に相当。
+        self.start_spin = QDoubleSpinBox()
+        self.start_spin.setRange(0.0, 99999.0)
+        self.start_spin.setDecimals(2)
+        self.start_spin.setSingleStep(0.1)
+        self.start_spin.setSuffix(" 秒")
+        self.start_spin.setSpecialValueText("先頭から")
+        self.start_spin.setValue(pad.start)
+        form.addRow("再生開始", self.start_spin)
+
+        self.end_spin = QDoubleSpinBox()
+        self.end_spin.setRange(0.0, 99999.0)
+        self.end_spin.setDecimals(2)
+        self.end_spin.setSingleStep(0.1)
+        self.end_spin.setSuffix(" 秒")
+        self.end_spin.setSpecialValueText("末尾まで")
+        self.end_spin.setValue(pad.end)
+        form.addRow("再生終了", self.end_spin)
+
         self.loop_chk = QCheckBox("ループ再生")
         self.loop_chk.setChecked(pad.loop)
         form.addRow("", self.loop_chk)
@@ -133,6 +152,15 @@ class PadEditDialog(QDialog):
             self.path_edit.setText(path)
 
     def accept(self):
+        end = self.end_spin.value()
+        if end > 0 and end <= self.start_spin.value():
+            QMessageBox.warning(
+                self, "再生範囲",
+                "再生終了は再生開始より後にしてください。\n"
+                "（音源全体を鳴らすなら両方を0にします）")
+            self.end_spin.setFocus()
+            self.end_spin.selectAll()
+            return
         # 同じキーが2つのパッドに載ると本番でどちらが鳴るか分からなくなるため、
         # 黙って上書きせず必ず確認を挟む。
         key = self.key_edit.text().strip().lower()
@@ -163,6 +191,8 @@ class PadEditDialog(QDialog):
         self.pad.gain = self.gain_spin.value()
         self.pad.fade_in = self.fade_in_spin.value()
         self.pad.fade_out = self.fade_out_spin.value()
+        self.pad.start = self.start_spin.value()
+        self.pad.end = self.end_spin.value()
         self.pad.loop = self.loop_chk.isChecked()
         self.pad.exclusive = self.excl_chk.isChecked()
         if self.retrigger_chk is not None:

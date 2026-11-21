@@ -63,6 +63,22 @@ def _resample_linear(data: np.ndarray, src_sr: int, dst_sr: int) -> np.ndarray:
     return out
 
 
+def _trim(data: np.ndarray, sr: int, start: float, end: float) -> np.ndarray:
+    """再生範囲(秒)で切り出す。end<=0 は末尾まで。
+
+    範囲が逆・短すぎる場合は「開始位置から末尾まで」へ寄せる。空PCMにすると
+    鳴らないパッドになり、原因も分かりにくいため。
+    """
+    n = data.shape[0]
+    if n <= 0 or (start <= 0 and end <= 0):
+        return data
+    i0 = min(max(0, int(start * sr)), n - 1)
+    i1 = n if end <= 0 else min(n, int(end * sr))
+    if i1 <= i0:
+        i1 = n
+    return data[i0:i1]
+
+
 @dataclass
 class Clip:
     """事前デコード済みの音源。PCM は常にエンジンのサンプルレート/チャンネル数に統一済み。"""
@@ -267,8 +283,14 @@ class AudioEngine:
             self._stream.close()
 
     # ---- 音源管理 ----
-    def load_clip(self, clip_id: str, path: str) -> Clip:
-        """音源を読み込み、エンジンのSR/チャンネルへ統一して RAM 常駐させる。"""
+    def load_clip(self, clip_id: str, path: str,
+                  start: float = 0.0, end: float = 0.0) -> Clip:
+        """音源を読み込み、エンジンのSR/チャンネルへ統一して RAM 常駐させる。
+
+        start/end（秒。end<=0 で末尾まで）を渡すと、その範囲だけを常駐させる。
+        切り出し済みを持つので再生側は位置を気にしなくてよく、長尺の一部だけ使う
+        場合は RAM も節約できる。
+        """
         data, sr = sf.read(path, dtype="float32", always_2d=True)
         # チャンネル数を統一（モノ→ステレオ複製 / 多ch→先頭chへ縮約は単純平均）
         if data.shape[1] == 1 and self.channels > 1:
@@ -280,6 +302,7 @@ class AudioEngine:
                 pad = np.repeat(data[:, -1:], self.channels - data.shape[1], axis=1)
                 data = np.concatenate([data, pad], axis=1)
         data = _resample(data, sr, self.samplerate)
+        data = _trim(data, self.samplerate, start, end)
         clip = Clip(clip_id=clip_id, path=str(path), pcm=np.ascontiguousarray(data),
                     samplerate=self.samplerate)
         with self._lock:
@@ -486,6 +509,9 @@ class AudioEngine:
     def _mix_voice(self, v: Voice, outdata: np.ndarray, frames: int) -> bool:
         """1ボイスを outdata に加算。まだ生存していれば True。"""
         clip = v.clip
+        if clip.frames <= 0:   # 空クリップ（長さ0のファイル等）でループが無限化するのを防ぐ
+            v.finished = True
+            return False
         filled = 0
         out_pos = 0
         while filled < frames:

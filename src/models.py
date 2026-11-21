@@ -23,6 +23,8 @@ class Pad:
     loop: bool = False
     fade_in: float = 0.0    # 秒
     fade_out: float = 0.0   # 秒
+    start: float = 0.0      # 再生開始位置（秒, 0で先頭から）
+    end: float = 0.0        # 再生終了位置（秒, 0で末尾まで）
     gain: float = 1.0       # 0.0-1.5
     exclusive: bool = False  # 再生時に他を止める（排他再生）
     retrigger: bool = False  # 連続再生（連打したぶん重ねて鳴らす）

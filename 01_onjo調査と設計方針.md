@@ -129,6 +129,9 @@ ONJO は無料で長年多くの現場を支えてきたソフトであり、2-3
 - 確率（ランダム）再生 — 複数音源から%指定で抽選。1つだけ空欄にすると残りを自動補完
 - UI配色テーマ・アイコン・スプラッシュ（`theme.py`、`assets/`）
 - PyInstaller による単独動作版のビルド（`Tips_SE.spec` → `dist/Tips_SE/`）
+- ONJO の保存ファイル(.lst)の取り込み（`onjo.py`）— 既存の公演データをそのまま開ける
+- 再生範囲（音源の一部だけを鳴らす）— ONJO の「再生範囲」に相当。読み込み時に
+  PCMを切り出して常駐させるので、再生時のコストはゼロ
 - GitHub Releases での配布（https://github.com/Ka-Hiromu/Tips_SE-dist）
 
 ### 耐久テスト結果（2026-06-10 実施、6テスト中6合格）
@@ -152,6 +155,30 @@ ONJO は無料で長年多くの現場を支えてきたソフトであり、2-3
   1. 本番の音響インターフェースで WASAPI 初期化が成功するか（`WASAPI yes` で起動するか）
   2. 長尺ループ音源のRAM使用量（5分ステレオ48kHz ≈ 110MB）
   3. プリセット読込後、全パッドが「準備完了」になるまで待つこと
+
+---
+
+## 5. ONJO の .lst 形式（実ファイルと ONJO.exe から判明した分）
+
+`onjo.py` の実装根拠。公式マニュアルに記載はなく、以下は手持ちの .lst 8本と
+ONJO.exe（1.11 64bit）内の文字列表から確認したもの。
+
+- 文字コードは CP932、INI 形式。`[Player00]`〜`[Player63]` が**常に64個**書き出される
+- プレイヤー1個のキー: `Key` / `FileCount` / `FileName0..N` / `Volume` / `isFadeIn` /
+  `isFadeOut` / `isSolo` / `isRepeat` / `Start` / `End` / `Color`
+- `Volume` は 0.0-1.0。`isXxx` は 0/1。`Color` は ARGB（既定 `FFFFFFFF`）
+- `Start` / `End` は **100ns 単位**で、未指定は `-1`（例: `20000000` = 2.0秒）。
+  Tips_SE 側は秒で持ち、`engine.load_clip` が読み込み時にその範囲を切り出す
+- `isSolo` は ONJO のプロパティ画面の「他の音を全て止める」（= 排他再生）
+- `Key` は ONJO の「キー:」コンボボックスの**添字**（0 = なし）。
+  並びは `なし, 0-9, A-Z, Backspace, Tab, Clear, Enter, Shift, Ctrl, Alt, Pause, Esc,
+  スペース, PageUp, PageDown, End, Home, ←, ↑, →, ↓, 0-9(テンキー), *+,-./(テンキー),
+  F1-F12, Scroll Lock, 左右Shift/Ctrl/Alt, : ; , - . / @ [ \ ] ^` の101項目で、
+  ONJO.exe 内の文字列表（日本語版・英語版が連続して置かれている）から採取した
+- フェードの**長さは .lst に入らない**。`ONJO.ini` の `FadeCount`（プロジェクト全体で
+  1つ）が持つが単位は不明なため、取り込み時は 2.0 秒を既定値として補っている
+- `ONJO.ini` は `PlayerMax`（画面に出すプレイヤー数）/ `FadeCount`（フェードの程度）/
+  `StopStyle`（全停止の方法: 強制停止 or フェードアウト）/ `Width` / `Height`
 
 ---
 
